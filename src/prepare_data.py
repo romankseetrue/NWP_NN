@@ -3,6 +3,8 @@ from typing import List, Tuple
 import pandas as pd
 import numpy as np
 
+from const import Const
+
 
 class SeriesType(Enum):
     OBSERVATION = 'Obs'
@@ -36,12 +38,11 @@ def process_file(file_id: int) -> pd.DataFrame:
 
 
 def get_series(df: pd.DataFrame, type: SeriesType) -> np.array:
-    measurements_per_day: int = 8
     series: np.array = np.array(df[type.value])
 
-    assert series.size % measurements_per_day == 0
+    assert series.size % Const.measurements_per_day == 0
 
-    return np.reshape(series, (series.size // measurements_per_day, measurements_per_day))
+    return np.reshape(series, (series.size // Const.measurements_per_day, Const.measurements_per_day))
 
 
 def treat_missing_values(df: pd.DataFrame) -> Tuple[np.array, np.array]:
