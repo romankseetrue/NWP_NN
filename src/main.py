@@ -1,13 +1,23 @@
-from typing import List
+from typing import List, Dict
 import numpy as np
 
 from prepare_data import DataLoader
 
 from visualization_utils import draw_temperature_comparison
 
+meteorological_stations: Dict[str, int] = {
+    'Teteriv': 33228,
+    'Chornobyl': 33231,
+    'Fastiv': 33339,
+    'Kyiv': 33345,
+    'Boryspil': 33347,
+    'Yagotyn': 33356,
+    'Bila Tserkva': 33464,
+    'Myronivka': 33466
+}
 
 if __name__ == '__main__':
-    loader: DataLoader = DataLoader(33345)
+    loader: DataLoader = DataLoader(meteorological_stations['Kyiv'])
     start_date: str = '2012-07-01'
     end_date: str = '2012-08-01'
     image_name: str = 'July 2012'
