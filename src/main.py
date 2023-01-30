@@ -1,7 +1,8 @@
-from typing import List, Dict
+from typing import Dict
 import numpy as np
 
 from prepare_data import DataLoader
+from model import Model
 
 meteorological_stations: Dict[str, int] = {
     'Teteriv': 33228,
@@ -26,3 +27,5 @@ if __name__ == '__main__':
     val_forecasts: np.array
     val_observations, val_forecasts = loader.get_data(
         '2013-07-01', '2013-11-02')
+
+    model: Model = Model()
