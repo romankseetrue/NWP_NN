@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 
 from const import Const
+from dataclasses import dataclass
 
 
 class SeriesType(Enum):
@@ -11,17 +12,24 @@ class SeriesType(Enum):
     FORECAST = 'Fcst'
 
 
+@dataclass
+class Query:
+    station_name: str = ''
+    start_date: str = '2012-07-01'
+    end_date: str = '2015-08-01'
+
+
 class TrainValDataLoader:
-    def __init__(self, queries: List[Tuple[str, str, str]]) -> None:
-        self.__queries: List[Tuple[str, str, str]] = queries
+    def __init__(self, queries: List[Query]) -> None:
+        self.__queries: List[Query] = queries
 
     def get_data(self) -> Tuple[np.array, np.array]:
         res_observations: np.array = None
         res_forecasts: np.array = None
         for query in self.__queries:
             loader: DataLoader = DataLoader(
-                Const.meteorological_stations[query[0]])
-            observations, forecasts = loader.get_data(query[1], query[2])
+                Const.meteorological_stations[query.station_name])
+            observations, forecasts = loader.get_data(query)
             res_observations = observations if res_observations is None else np.concatenate(
                 (res_observations, observations), axis=0)
             res_forecasts = forecasts if res_forecasts is None else np.concatenate(
@@ -33,10 +41,9 @@ class DataLoader:
     def __init__(self, file_id: int) -> None:
         self.__df: pd.DataFrame = process_file(file_id)
 
-    def get_data(self, start_date: str = '2012-07-01',
-                 end_date: str = '2015-08-01') -> Tuple[np.array, np.array]:
+    def get_data(self, query: Query = Query()) -> Tuple[np.array, np.array]:
         range: pd.DatetimeIndex = pd.date_range(
-            start=f'{start_date} 03:00:00', end=f'{end_date} 00:00:00', freq='3H')
+            start=f'{query.start_date} 03:00:00', end=f'{query.end_date} 00:00:00', freq='3H')
         return treat_missing_values(self.__df[self.__df['DateTime'].isin(range)])
 
 

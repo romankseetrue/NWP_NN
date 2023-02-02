@@ -1,6 +1,6 @@
 import numpy as np
 
-from prepare_data import TrainValDataLoader, DataLoader
+from prepare_data import TrainValDataLoader, DataLoader, Query
 from model import Model
 from const import Const
 
@@ -15,13 +15,13 @@ if __name__ == '__main__':
     train_observations: np.array
     train_forecasts: np.array
     train_observations, train_forecasts = TrainValDataLoader(
-        [('Kyiv', '2012-07-01', '2013-07-01')]).get_data()
+        [Query('Kyiv', '2012-07-01', '2013-07-01')]).get_data()
     train_forecasts = train_forecasts.reshape(shape)
 
     val_observations: np.array
     val_forecasts: np.array
     val_observations, val_forecasts = TrainValDataLoader(
-        [('Kyiv', '2013-07-01', '2013-11-02')]).get_data()
+        [Query('Kyiv', '2013-07-01', '2013-11-02')]).get_data()
     val_forecasts = val_forecasts.reshape(shape)
 
     model: Model = Model()
