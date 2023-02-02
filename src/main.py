@@ -1,6 +1,6 @@
 import numpy as np
 
-from prepare_data import TrainValDataLoader, DataLoader, Query
+from prepare_data import Query, TrainValDataLoader, TestDataLoader
 from model import Model
 from const import Const
 
@@ -28,8 +28,7 @@ if __name__ == '__main__':
     model.train(train_forecasts, train_observations,
                 (val_forecasts, val_observations))
 
-    test_loader: DataLoader = DataLoader(
-        Const.meteorological_stations['Teteriv'])
+    test_loader: TestDataLoader = TestDataLoader(Query('Teteriv'))
     test_observations: np.array
     test_forecasts: np.array
     test_observations, test_forecasts = test_loader.get_data()
@@ -37,7 +36,11 @@ if __name__ == '__main__':
 
     test_forecasts = test_forecasts.reshape(shape)
 
+    test_forecasts_nn: np.array = model.forecast(test_forecasts)
+    test_loader.update(test_forecasts_nn)
+    test_loader.save_to_file("results.csv")
+
     print("RMSE with ML (prediction):", rmse(
-        model.forecast(test_forecasts), test_observations))
+        test_forecasts_nn, test_observations))
     print("RMSE with ML (evaluation):", np.sqrt(model.test(
         test_forecasts, test_observations)))

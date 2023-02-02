@@ -35,15 +35,15 @@ class Model:
             y=out,
             batch_size=Const.batch_size,
             epochs=Const.epochs,
-            verbose=2,
+            verbose=Const.verbose,
             validation_data=val_data
         )
 
     def test(self, inp: np.array, out: np.array) -> np.float32:
         return self.__model.evaluate(x=inp,
                                      y=out,
-                                     verbose=2)
+                                     verbose=Const.verbose)
 
     def forecast(self, inp: np.array) -> np.array:
         return self.__model.predict(x=inp,
-                                    verbose=2)
+                                    verbose=Const.verbose)
