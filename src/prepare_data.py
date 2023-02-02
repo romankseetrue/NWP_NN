@@ -11,6 +11,24 @@ class SeriesType(Enum):
     FORECAST = 'Fcst'
 
 
+class TrainValDataLoader:
+    def __init__(self, queries: List[Tuple[str, str, str]]) -> None:
+        self.__queries: List[Tuple[str, str, str]] = queries
+
+    def get_data(self) -> Tuple[np.array, np.array]:
+        res_observations: np.array = None
+        res_forecasts: np.array = None
+        for query in self.__queries:
+            loader: DataLoader = DataLoader(
+                Const.meteorological_stations[query[0]])
+            observations, forecasts = loader.get_data(query[1], query[2])
+            res_observations = observations if res_observations is None else np.concatenate(
+                (res_observations, observations), axis=0)
+            res_forecasts = forecasts if res_forecasts is None else np.concatenate(
+                (res_forecasts, forecasts), axis=0)
+        return res_observations, res_forecasts
+
+
 class DataLoader:
     def __init__(self, file_id: int) -> None:
         self.__df: pd.DataFrame = process_file(file_id)
