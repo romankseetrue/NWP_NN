@@ -37,7 +37,7 @@ def exp_01() -> None:
 
     df = pd.DataFrame(data=res, index=['NWP']).transpose()
     df = df.reindex(sorted(df.index), axis=0)
-    df.to_excel('../results/exp_00.xlsx', na_rep='NaN')
+    df.to_excel('../results/exp_01.xlsx', na_rep='NaN')
 
 
 def exp_02() -> None:
@@ -67,7 +67,18 @@ def exp_02() -> None:
     df = pd.DataFrame(data=res)
     df = df.reindex(sorted(df.index), axis=0)
     df = df.reindex(sorted(df.columns), axis=1)
-    df.to_excel('../results/exp_01.xlsx', na_rep='NaN')
+    df.to_excel('../results/exp_02.xlsx', na_rep='NaN')
+
+
+def exp_03():
+    test_loader: TestDataLoader = TestDataLoader(
+        Query('Kyiv', '2012-07-01', '2013-07-01'))
+
+    test_observations: np.array
+    test_observations, _ = test_loader.get_data()
+
+    test_loader.update(test_observations)
+    test_loader.save_to_file('results.csv')
 
 
 if __name__ == '__main__':

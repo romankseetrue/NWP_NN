@@ -56,7 +56,12 @@ class TestDataLoader(DataLoader):
         self.__indices_to_remove: Optional[List[int]] = None
 
     def get_data(self) -> Tuple[np.array, np.array]:
-        observations, forecasts, self.__indices_to_remove = super().get_data()
+        range: pd.DatetimeIndex = pd.date_range(
+            start=f'{self._DataLoader__query.start_date} 03:00:00', end=f'{self._DataLoader__query.end_date} 00:00:00', freq='3H')
+        self._DataLoader__df = self._DataLoader__df[self._DataLoader__df['DateTime'].isin(
+            range)]
+        observations, forecasts, self.__indices_to_remove = treat_missing_values(
+            self._DataLoader__df)
 
         assert observations.shape == forecasts.shape
         self.__shape = observations.shape
