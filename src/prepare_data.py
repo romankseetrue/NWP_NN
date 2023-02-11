@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import List, Tuple, Optional
 import pandas as pd
@@ -7,12 +9,6 @@ from const import Const
 from dataclasses import dataclass
 
 
-class SeriesType(Enum):
-    OBSERVATION = 'Obs'
-    FORECAST = 'Fcst'
-    FORECAST_NN = 'FcstNN'
-
-
 @dataclass
 class Query:
     station_name: str = ''
@@ -20,67 +16,95 @@ class Query:
     end_date: str = '2015-08-01'
 
 
+class Samples:
+    def __init__(self) -> None:
+        self.__inp: Optional[np.array] = None
+        self.__out: Optional[np.array] = None
+        self.__num: int = 0
+
+    def add_arrays(self, inp: np.array, out: np.array) -> None:
+        self.__inp = inp if self.__inp is None else np.concatenate(
+            (self.__inp, inp), axis=0)
+        self.__out = out if self.__out is None else np.concatenate(
+            (self.__out, out), axis=0)
+
+        assert self.__inp.shape[0] == self.__out.shape[0]
+        self.__num = self.__inp.shape[0]
+
+    def add_samples(self, samples: Samples) -> None:
+        self.add_arrays(samples.__inp, samples.__out)
+
+    def get(self) -> Tuple[np.array, np.array]:
+        return self.__inp, self.__out
+
+    def size(self) -> int:
+        return self.__num
+
+    def remove_by_indices(self, indices_to_remove: List[int]) -> None:
+        self.__inp = np.delete(self.__inp, indices_to_remove, axis=0)
+        self.__out = np.delete(self.__out, indices_to_remove, axis=0)
+
+
 class TrainValDataLoader:
     def __init__(self, queries: List[Query]) -> None:
         self.__queries: List[Query] = queries
 
     def get_data(self) -> Tuple[np.array, np.array]:
-        res_observations: np.array = None
-        res_forecasts: np.array = None
+        samples: Samples = Samples()
         for query in self.__queries:
-            loader: DataLoader = DataLoader(query)
-            observations, forecasts, _ = loader.get_data()
-            res_observations = observations if res_observations is None else np.concatenate(
-                (res_observations, observations), axis=0)
-            res_forecasts = forecasts if res_forecasts is None else np.concatenate(
-                (res_forecasts, forecasts), axis=0)
-        return res_observations, res_forecasts
+            loader: DataLoader = DataLoader(query, CosmoSampler())
+            samples.add_arrays(*loader.get_data())
+        return samples.get()[1], samples.get()[0]
 
 
-class DataLoader:
-    def __init__(self, query: Query) -> None:
-        self.__query = query
-        self.__df: pd.DataFrame = process_file(
-            Const.meteorological_stations[self.__query.station_name])
+class Sampler:
+    def get_samples(self) -> Samples:
+        pass
 
-    def get_data(self) -> Tuple[np.array, np.array, List[int]]:
+
+class CosmoSampler(Sampler):
+    def process_file(self, query: Query) -> pd.DataFrame:
+        file_id: int = Const.meteorological_stations[query.station_name]
+        file_name: str = f'../data/COSMO/fo_ua_all_cosmo_{file_id}_TTT_20120701_20131101_start00_zv03_trv21.csv'
+        df: pd.DataFrame = pd.read_csv(
+            file_name, skipinitialspace=True).replace('n', np.nan)
+
+        df['DateTime'] = pd.to_datetime(
+            df['DATE'] + ' ' + df['TIME'], dayfirst=True)
+        df = df.drop(['DATE', 'TIME'], axis=1).iloc[:, [2, 0, 1]]
+
+        df['Fcst'] = df['Fcst'].astype(float)
+        df['Obs'] = df['Obs'].astype(float)
+
         range: pd.DatetimeIndex = pd.date_range(
-            start=f'{self.__query.start_date} 03:00:00', end=f'{self.__query.end_date} 00:00:00', freq='3H')
-        return treat_missing_values(self.__df[self.__df['DateTime'].isin(range)])
+            start=f'{query.start_date} 03:00:00', end=f'{query.end_date} 00:00:00', freq='3H')
 
+        return df[df['DateTime'].isin(range)]
 
-class TestDataLoader(DataLoader):
-    def __init__(self, query: Query) -> None:
-        super().__init__(query)
-        self.__shape: Optional[Tuple] = None
-        self.__indices_to_remove: Optional[List[int]] = None
+    def get_series(self, df: pd.DataFrame, type: str) -> np.array:
+        series: np.array = np.array(df[type])
 
-    def get_data(self) -> Tuple[np.array, np.array]:
-        range: pd.DatetimeIndex = pd.date_range(
-            start=f'{self._DataLoader__query.start_date} 03:00:00', end=f'{self._DataLoader__query.end_date} 00:00:00', freq='3H')
-        self._DataLoader__df = self._DataLoader__df[self._DataLoader__df['DateTime'].isin(
-            range)]
-        observations, forecasts, self.__indices_to_remove = treat_missing_values(
-            self._DataLoader__df)
+        assert series.size % Const.measurements_per_day == 0
 
-        assert observations.shape == forecasts.shape
-        self.__shape = observations.shape
+        return np.reshape(series, (series.size // Const.measurements_per_day, Const.measurements_per_day))
 
-        return observations, forecasts
+    def get_samples(self, df: pd.DataFrame) -> Samples:
+        samples: Samples = Samples()
+        samples.add_arrays(self.get_series(df, 'Fcst'), self.get_series(
+            df, 'Obs'))
+        return samples
 
-    def update(self, forecasts_nn: np.array) -> None:
-        assert forecasts_nn.shape == self.__shape
-        assert self.__indices_to_remove
+    def treat_missing_values(self, samples: Samples) -> List[int]:
+        size: int = samples.size()
 
-        for ind in self.__indices_to_remove:
-            forecasts_nn = np.insert(forecasts_nn, ind, np.array(
-                [np.nan] * forecasts_nn.shape[1]), axis=0)
+        indices_to_remove: List[int] = []
+        for i in range(size):
+            if np.any(np.isnan(samples.get()[0][i])) or np.any(np.isnan(samples.get()[1][i])):
+                indices_to_remove.append(i)
 
-        self._DataLoader__df[SeriesType.FORECAST_NN.value] = forecasts_nn.flatten(
-        )
+        return indices_to_remove
 
-    def save_to_file(self, filepath: str) -> None:
-        df = self._DataLoader__df.copy()
+    def save_to_file(self, df: pd.DataFrame, filepath: str) -> None:
         df['DATE'] = df['DateTime'].apply(
             lambda ts: ts.date().strftime('%d.%m.%Y'))
         df['TIME'] = df['DateTime'].apply(
@@ -89,43 +113,81 @@ class TestDataLoader(DataLoader):
         df.to_csv(filepath, na_rep='n', float_format='%.1f', index=False)
 
 
-def process_file(file_id: int) -> pd.DataFrame:
-    file_name: str = f'../data/fo_ua_all_cosmo_{file_id}_TTT_20120701_20131101_start00_zv03_trv21.csv'
-    df: pd.DataFrame = pd.read_csv(
-        file_name, skipinitialspace=True).replace('n', np.nan)
+class ClimateSampler(Sampler):
+    inp_vec_size: int = 10
+    forecast_len: int = 3
 
-    df['DateTime'] = pd.to_datetime(
-        df['DATE'] + ' ' + df['TIME'], dayfirst=True)
-    df = df.drop(['DATE', 'TIME'], axis=1).iloc[:, [2, 0, 1]]
+    def process_file(self, query: Query) -> pd.DataFrame:
+        file_name: str = f'../data/Kyiv_Daily_Temperature_bl_1961-2010.csv'
+        df: pd.DataFrame = pd.read_csv(
+            file_name, skipinitialspace=True).replace('n', np.nan)
 
-    df['Fcst'] = df['Fcst'].astype(float)
-    df['Obs'] = df['Obs'].astype(float)
+        df['DATE'] = pd.to_datetime(df['DATE'], format='%Y%m%d')
+        df['TG'] = df['TG'].astype(float)
 
-    return df
+        range: pd.DatetimeIndex = pd.date_range(
+            start=f'{query.start_date}', end=f'{query.end_date}', freq='D')
+
+        return df[df['DATE'].isin(range)]
+
+    def get_samples(self, df: pd.DataFrame) -> Samples:
+        series: np.array = np.array(df['TG'])
+
+        samples: Samples = Samples()
+        for ind in range(series.size):
+            start_ind = ind - ClimateSampler.inp_vec_size - ClimateSampler.forecast_len + 1
+            end_ind = ind - ClimateSampler.forecast_len + 1
+            if start_ind < 0:
+                samples.add_arrays(
+                    np.full((1, ClimateSampler.inp_vec_size), np.nan), np.full((1, 1), np.nan))
+            else:
+                samples.add_arrays(np.reshape(
+                    series[start_ind:end_ind], (1, ClimateSampler.inp_vec_size)), np.full((1, 1), series[ind]))
+        return samples
+
+    def treat_missing_values(self, samples: Samples) -> List[int]:
+        size: int = samples.size()
+
+        inp, out = samples.get()
+
+        indices_to_remove: List[int] = []
+        for i in range(size):
+            if np.any(np.isnan(out[i])) or np.isnan(inp[i][0]) or np.isnan(inp[i][ClimateSampler.inp_vec_size - 1]):
+                indices_to_remove.append(i)
+
+        return indices_to_remove
+
+    def save_to_file(self, df: pd.DataFrame, filepath: str) -> None:
+        df['DATE'] = df['DATE'].apply(
+            lambda ts: ts.date().strftime('%Y%m%d'))
+        df.to_csv(filepath, na_rep='n', float_format='%.1f', index=False)
 
 
-def get_series(df: pd.DataFrame, type: SeriesType) -> np.array:
-    series: np.array = np.array(df[type.value])
+class DataLoader:
+    def __init__(self, query: Query, samples_designer: Sampler) -> None:
+        self.__indices_to_remove: Optional[List[int]] = None
+        self.__samples_designer: Sampler = samples_designer
+        self.__df: pd.DataFrame = self.__samples_designer.process_file(query)
 
-    assert series.size % Const.measurements_per_day == 0
+    def get_data(self) -> Samples:
+        samples: Samples = self.__samples_designer.get_samples(self.__df)
+        self.__indices_to_remove = self.__samples_designer.treat_missing_values(
+            samples)
+        samples.remove_by_indices(self.__indices_to_remove)
 
-    return np.reshape(series, (series.size // Const.measurements_per_day, Const.measurements_per_day))
+        return samples.get()
 
 
-def treat_missing_values(df: pd.DataFrame) -> Tuple[np.array, np.array, List[int]]:
-    observations: np.array = get_series(df, SeriesType.OBSERVATION)
-    forecasts: np.array = get_series(df, SeriesType.FORECAST)
+class TestDataLoader(DataLoader):
+    def update(self, forecasts_nn: np.array) -> None:
+        assert self._DataLoader__indices_to_remove
 
-    assert observations.shape[0] == forecasts.shape[0]
+        for ind in self._DataLoader__indices_to_remove:
+            forecasts_nn = np.insert(forecasts_nn, ind, np.full(
+                forecasts_nn.shape[1:], np.nan), axis=0)
 
-    size: int = observations.shape[0]
+        self._DataLoader__df['FcstNN'] = forecasts_nn.flatten()
 
-    indices_to_remove: List[int] = []
-    for i in range(size):
-        if np.any(np.isnan(observations[i])) or np.any(np.isnan(forecasts[i])):
-            indices_to_remove.append(i)
-
-    observations = np.delete(observations, indices_to_remove, axis=0)
-    forecasts = np.delete(forecasts, indices_to_remove, axis=0)
-
-    return observations, forecasts, indices_to_remove
+    def save_to_file(self, filepath: str) -> None:
+        df = self._DataLoader__df.copy()
+        self._DataLoader__samples_designer.save_to_file(df, filepath)

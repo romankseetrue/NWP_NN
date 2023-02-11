@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from prepare_data import Query, TestDataLoader
+from prepare_data import Query, TestDataLoader, CosmoSampler, ClimateSampler
 from model import Model
 from const import Const
 from visualization_utils import draw_temperature_comparison
@@ -13,13 +13,13 @@ def rmse(y_true: np.array, y_pred: np.array) -> np.float32:
 
 def exp_00() -> None:
     loader: TestDataLoader = TestDataLoader(
-        Query('Kyiv', '2013-04-01', '2013-05-01'))
+        Query('Kyiv', '2013-04-01', '2013-05-01'), CosmoSampler())
 
-    observations: np.array
     forecasts: np.array
-    observations, forecasts = loader.get_data()
-    observations = np.mean(observations, axis=0)
+    observations: np.array
+    forecasts, observations = loader.get_data()
     forecasts = np.mean(forecasts, axis=0)
+    observations = np.mean(observations, axis=0)
 
     categories: List[str] = [
         f'{num % 24}:00'.zfill(5) for num in range(3, 27, 3)]
@@ -32,7 +32,7 @@ def exp_00() -> None:
 def exp_01() -> None:
     res = {}
     for st in Const.meteorological_stations:
-        loader: TestDataLoader = TestDataLoader(Query(st))
+        loader: TestDataLoader = TestDataLoader(Query(st), CosmoSampler())
         res[st] = f'{rmse(*loader.get_data()):.4f}'
 
     df = pd.DataFrame(data=res, index=['NWP']).transpose()
@@ -51,11 +51,12 @@ def exp_02() -> None:
 
         for st2 in Const.meteorological_stations:
             if st1 != st2:
-                test_loader: TestDataLoader = TestDataLoader(Query(st2))
+                test_loader: TestDataLoader = TestDataLoader(
+                    Query(st2), CosmoSampler())
 
-                test_observations: np.array
                 test_forecasts: np.array
-                test_observations, test_forecasts = test_loader.get_data()
+                test_observations: np.array
+                test_forecasts, test_observations = test_loader.get_data()
 
                 test_forecasts_nn: np.array = model.forecast(test_forecasts)
                 test_loader.update(test_forecasts_nn)
@@ -72,13 +73,24 @@ def exp_02() -> None:
 
 def exp_03():
     test_loader: TestDataLoader = TestDataLoader(
-        Query('Kyiv', '2012-07-01', '2013-07-01'))
+        Query('Kyiv', '2012-07-01', '2013-07-01'), CosmoSampler())
 
     test_observations: np.array
-    test_observations, _ = test_loader.get_data()
+    _, test_observations = test_loader.get_data()
 
     test_loader.update(test_observations)
-    test_loader.save_to_file('results.csv')
+    test_loader.save_to_file('results_cosmo.csv')
+
+
+def exp_04():
+    loader: TestDataLoader = TestDataLoader(
+        Query('Kyiv', '1965-07-01', '1965-08-01'), ClimateSampler())
+
+    out: np.array
+    _, out = loader.get_data()
+
+    loader.update(out)
+    loader.save_to_file('results_climate.csv')
 
 
 if __name__ == '__main__':
