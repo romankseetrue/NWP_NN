@@ -46,15 +46,16 @@ class Samples:
 
 
 class TrainValDataLoader:
-    def __init__(self, queries: List[Query]) -> None:
+    def __init__(self, queries: List[Query], samples_designer: Sampler) -> None:
         self.__queries: List[Query] = queries
+        self.__samples_designer: Sampler = samples_designer
 
     def get_data(self) -> Tuple[np.array, np.array]:
         samples: Samples = Samples()
         for query in self.__queries:
-            loader: DataLoader = DataLoader(query, CosmoSampler())
+            loader: DataLoader = DataLoader(query, self.__samples_designer)
             samples.add_arrays(*loader.get_data())
-        return samples.get()[1], samples.get()[0]
+        return samples.get()
 
 
 class Sampler:

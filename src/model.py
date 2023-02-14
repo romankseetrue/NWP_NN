@@ -7,7 +7,7 @@ from tensorflow.keras.layers import Dense, GRU, Input
 
 from typing import List
 from const import Const
-from prepare_data import Query, TrainValDataLoader
+from prepare_data import Query, TrainValDataLoader, CosmoSampler
 
 
 def create_model() -> keras.Model:
@@ -32,16 +32,16 @@ class Model:
         self.__input_data_shape = (-1, Const.measurements_per_day, 1)
 
     def train(self, train_data_queries: List[Query], val_data_queries: List[Query]) -> tf.keras.callbacks.History:
-        train_observations: np.array
         train_forecasts: np.array
-        train_observations, train_forecasts = TrainValDataLoader(
-            train_data_queries).get_data()
+        train_observations: np.array
+        train_forecasts, train_observations = TrainValDataLoader(
+            train_data_queries, CosmoSampler()).get_data()
         train_forecasts = train_forecasts.reshape(self.__input_data_shape)
 
-        val_observations: np.array
         val_forecasts: np.array
-        val_observations, val_forecasts = TrainValDataLoader(
-            val_data_queries).get_data()
+        val_observations: np.array
+        val_forecasts, val_observations = TrainValDataLoader(
+            val_data_queries, CosmoSampler()).get_data()
         val_forecasts = val_forecasts.reshape(self.__input_data_shape)
 
         return self.__model.fit(
