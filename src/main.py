@@ -18,6 +18,7 @@ def exp_00() -> None:
     forecasts: np.array
     observations: np.array
     forecasts, observations = loader.get_data()
+    forecasts = np.reshape(forecasts, (-1, Const.measurements_per_day))
     forecasts = np.mean(forecasts, axis=0)
     observations = np.mean(observations, axis=0)
 
@@ -33,7 +34,13 @@ def exp_01() -> None:
     res = {}
     for st in Const.meteorological_stations:
         loader: TestDataLoader = TestDataLoader(Query(st), CosmoSampler())
-        res[st] = f'{rmse(*loader.get_data()):.4f}'
+
+        forecasts: np.array
+        observations: np.array
+        forecasts, observations = loader.get_data()
+        forecasts = np.reshape(forecasts, (-1, Const.measurements_per_day))
+
+        res[st] = f'{rmse(forecasts, observations):.4f}'
 
     df = pd.DataFrame(data=res, index=['NWP']).transpose()
     df = df.reindex(sorted(df.index), axis=0)
@@ -47,7 +54,7 @@ def exp_02() -> None:
 
         model: Model = Model()
         model.train([Query(st1, '2012-07-01', '2013-07-01')],
-                    [Query(st1, '2013-07-01', '2013-11-02')])
+                    [Query(st1, '2013-07-01', '2013-11-02')], CosmoSampler())
 
         for st2 in Const.meteorological_stations:
             if st1 != st2:

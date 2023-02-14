@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import List, Tuple, Optional
 import pandas as pd
 import numpy as np
@@ -82,17 +81,18 @@ class CosmoSampler(Sampler):
 
         return df[df['DateTime'].isin(range)]
 
-    def get_series(self, df: pd.DataFrame, type: str) -> np.array:
-        series: np.array = np.array(df[type])
-
-        assert series.size % Const.measurements_per_day == 0
-
-        return np.reshape(series, (series.size // Const.measurements_per_day, Const.measurements_per_day))
-
     def get_samples(self, df: pd.DataFrame) -> Samples:
+        assert df.shape[0] % Const.measurements_per_day == 0
+        samples_cnt: int = df.shape[0] // Const.measurements_per_day
+
+        inp: np.array = np.array(df['Fcst'])
+        inp = np.reshape(inp, (samples_cnt, Const.measurements_per_day, 1))
+
+        out: np.array = np.array(df['Obs'])
+        out = np.reshape(out, (samples_cnt, Const.measurements_per_day))
+
         samples: Samples = Samples()
-        samples.add_arrays(self.get_series(df, 'Fcst'), self.get_series(
-            df, 'Obs'))
+        samples.add_arrays(inp, out)
         return samples
 
     def treat_missing_values(self, samples: Samples) -> List[int]:
