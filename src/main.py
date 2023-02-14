@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from prepare_data import Query, TestDataLoader, CosmoSampler, ClimateSampler, Samples
-from model import Model
+from model import CosmoModel, Model, ClimateModel
 from const import Const
 from visualization_utils import draw_temperature_comparison
 
@@ -52,7 +52,7 @@ def exp_02() -> None:
     for st1 in Const.meteorological_stations:
         res[st1] = {}
 
-        model: Model = Model()
+        model: Model = CosmoModel()
         model.train([Query(st1, '2012-07-01', '2013-07-01')],
                     [Query(st1, '2013-07-01', '2013-11-02')], CosmoSampler())
 
@@ -110,6 +110,28 @@ def exp_05():
     print(samples.get())
     samples = ClimateSampler().augment_samples(samples)
     print(samples.get())
+
+
+def exp_06() -> None:
+    Const.batch_size = 32
+    Const.verbose = 2
+
+    model: Model = ClimateModel()
+    model.train([Query('Kyiv', '1961-01-01', '2000-12-31')],
+                [Query('Kyiv', '2001-01-01', '2005-12-31')], ClimateSampler())
+
+    for year in [2006, 2007, 2008, 2009, 2010]:
+        loader: TestDataLoader = TestDataLoader(Query('Kyiv', str(np.datetime64(
+            f'{year}-01-01') - np.timedelta64(Const.inp_vec_size + Const.forecast_len - 1, 'D')), f'{year}-12-31'), ClimateSampler())
+
+        inp, out = loader.get_data()
+        forecasts_nn: np.array = model.forecast(inp)
+        loader.update(forecasts_nn)
+
+        print(f'{rmse(forecasts_nn, out):.4f}')
+
+        loader.save_to_file(f'results_climate_{year}.csv', Query(
+            'Kyiv', f'{year}-01-01', f'{year}-12-31'))
 
 
 if __name__ == '__main__':

@@ -108,7 +108,7 @@ class CosmoSampler(Sampler):
 
         return indices_to_remove
 
-    def save_to_file(self, df: pd.DataFrame, filepath: str) -> None:
+    def save_to_file(self, df: pd.DataFrame, query: Optional[Query], filepath: str) -> None:
         df['DATE'] = df['DateTime'].apply(
             lambda ts: ts.date().strftime('%d.%m.%Y'))
         df['TIME'] = df['DateTime'].apply(
@@ -118,9 +118,6 @@ class CosmoSampler(Sampler):
 
 
 class ClimateSampler(Sampler):
-    inp_vec_size: int = 10
-    forecast_len: int = 3
-
     def process_file(self, query: Query) -> pd.DataFrame:
         file_name: str = f'../data/Kyiv_Daily_Temperature_bl_1961-2010.csv'
         df: pd.DataFrame = pd.read_csv(
@@ -139,14 +136,14 @@ class ClimateSampler(Sampler):
 
         samples: Samples = Samples()
         for ind in range(series.size):
-            start_ind = ind - ClimateSampler.inp_vec_size - ClimateSampler.forecast_len + 1
-            end_ind = ind - ClimateSampler.forecast_len + 1
+            start_ind = ind - Const.inp_vec_size - Const.forecast_len + 1
+            end_ind = ind - Const.forecast_len + 1
             if start_ind < 0:
                 samples.add_arrays(
-                    np.full((1, ClimateSampler.inp_vec_size), np.nan), np.full((1, 1), np.nan))
+                    np.full((1, Const.inp_vec_size), np.nan), np.full((1, 1), np.nan))
             else:
                 samples.add_arrays(np.reshape(
-                    series[start_ind:end_ind], (1, ClimateSampler.inp_vec_size)), np.full((1, 1), series[ind]))
+                    series[start_ind:end_ind], (1, Const.inp_vec_size)), np.full((1, 1), series[ind]))
         return samples
 
     def treat_missing_values(self, samples: Samples) -> List[int]:
@@ -156,14 +153,20 @@ class ClimateSampler(Sampler):
 
         indices_to_remove: List[int] = []
         for i in range(size):
-            if np.any(np.isnan(out[i])) or np.isnan(inp[i][0]) or np.isnan(inp[i][ClimateSampler.inp_vec_size - 1]):
+            if np.any(np.isnan(out[i])) or np.isnan(inp[i][0]) or np.isnan(inp[i][Const.inp_vec_size - 1]):
                 indices_to_remove.append(i)
 
         return indices_to_remove
 
-    def save_to_file(self, df: pd.DataFrame, filepath: str) -> None:
+    def save_to_file(self, df: pd.DataFrame, query: Optional[Query], filepath: str) -> None:
+        if query:
+            range: pd.DatetimeIndex = pd.date_range(
+                start=f'{query.start_date}', end=f'{query.end_date}', freq='D')
+            df = df[df['DATE'].isin(range)]
+
         df['DATE'] = df['DATE'].apply(
             lambda ts: ts.date().strftime('%Y%m%d'))
+
         df.to_csv(filepath, na_rep='n', float_format='%.1f', index=False)
 
     def augment_samples(self, samples: Samples) -> Samples:
@@ -206,6 +209,6 @@ class TestDataLoader(DataLoader):
 
         self._DataLoader__df['FcstNN'] = forecasts_nn.flatten()
 
-    def save_to_file(self, filepath: str) -> None:
+    def save_to_file(self, filepath: str, query: Optional[Query] = None) -> None:
         df = self._DataLoader__df.copy()
-        self._DataLoader__samples_designer.save_to_file(df, filepath)
+        self._DataLoader__samples_designer.save_to_file(df, query, filepath)

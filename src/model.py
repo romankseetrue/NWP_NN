@@ -5,20 +5,9 @@ from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, GRU, Input
 
-from typing import List
+from typing import List, Optional
 from const import Const
 from prepare_data import Query, TrainValDataLoader, Sampler
-
-
-def create_model() -> keras.Model:
-    model: keras.Model = Sequential()
-    model.add(Input(shape=(None, 1)))
-    model.add(GRU(16))
-    model.add(Dense(Const.measurements_per_day))
-
-    model.summary()
-
-    return model
 
 
 class Model:
@@ -27,8 +16,7 @@ class Model:
         tf.keras.utils.set_random_seed(1)
         tf.config.experimental.enable_op_determinism()
 
-        self.__model: keras.Model = create_model()
-        self.__model.compile(loss='mse', optimizer='adam')
+        self.__model: Optional[keras.Model] = None
 
     def train(self, train_data_queries: List[Query], val_data_queries: List[Query], samples_designer: Sampler) -> tf.keras.callbacks.History:
         train_forecasts: np.array
@@ -58,3 +46,32 @@ class Model:
     def forecast(self, inp: np.array) -> np.array:
         return self.__model.predict(x=inp,
                                     verbose=Const.verbose)
+
+
+class CosmoModel(Model):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._Model__model: keras.Model = Sequential()
+        self._Model__model.add(Input(shape=(None, 1)))
+        self._Model__model.add(GRU(16))
+        self._Model__model.add(Dense(Const.measurements_per_day))
+
+        self._Model__model.summary()
+
+        self._Model__model.compile(loss='mse', optimizer='adam')
+
+
+class ClimateModel(Model):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._Model__model: keras.Model = Sequential()
+        self._Model__model.add(Input(shape=(None, 1)))
+        self._Model__model.add(GRU(16, return_sequences=True))
+        self._Model__model.add(GRU(16))
+        self._Model__model.add(Dense(1))
+
+        self._Model__model.summary()
+
+        self._Model__model.compile(loss='mse', optimizer='adam')
