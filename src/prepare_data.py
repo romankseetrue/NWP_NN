@@ -61,6 +61,9 @@ class Sampler:
     def get_samples(self) -> Samples:
         pass
 
+    def augment_samples(self, samples: Samples) -> Samples:
+        return samples
+
 
 class CosmoSampler(Sampler):
     def process_file(self, query: Query) -> pd.DataFrame:
@@ -163,6 +166,19 @@ class ClimateSampler(Sampler):
             lambda ts: ts.date().strftime('%Y%m%d'))
         df.to_csv(filepath, na_rep='n', float_format='%.1f', index=False)
 
+    def augment_samples(self, samples: Samples) -> Samples:
+        inp, _ = samples.get()
+
+        for curr in inp:
+            last_good_ind: int = 0
+            for ind in range(1, curr.shape[0]):
+                if not np.isnan(curr[ind]):
+                    curr[last_good_ind:ind] = np.linspace(
+                        curr[last_good_ind], curr[ind], num=ind - last_good_ind, endpoint=False)
+                    last_good_ind = ind
+
+        return samples
+
 
 class DataLoader:
     def __init__(self, query: Query, samples_designer: Sampler) -> None:
@@ -175,6 +191,7 @@ class DataLoader:
         self.__indices_to_remove = self.__samples_designer.treat_missing_values(
             samples)
         samples.remove_by_indices(self.__indices_to_remove)
+        samples = self.__samples_designer.augment_samples(samples)
 
         return samples.get()
 

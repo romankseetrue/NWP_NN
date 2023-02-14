@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from prepare_data import Query, TestDataLoader, CosmoSampler, ClimateSampler
+from prepare_data import Query, TestDataLoader, CosmoSampler, ClimateSampler, Samples
 from model import Model
 from const import Const
 from visualization_utils import draw_temperature_comparison
@@ -98,6 +98,18 @@ def exp_04():
 
     loader.update(out)
     loader.save_to_file('results_climate.csv')
+
+
+def exp_05():
+    samples: Samples = Samples()
+    samples.add_arrays(
+        np.array([[1, np.nan, np.nan, np.nan, 6, 7, 3]]), np.array([[2]]))
+    samples.add_arrays(
+        np.array([[1, np.nan, np.nan, np.nan, np.nan, np.nan, 3]]), np.array([[2]]))
+    samples.add_arrays(np.array([[1, 2, 3, 4, 5, 6, 7]]), np.array([[2]]))
+    print(samples.get())
+    samples = ClimateSampler().augment_samples(samples)
+    print(samples.get())
 
 
 if __name__ == '__main__':
