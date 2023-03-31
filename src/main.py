@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from prepare_data import Query, TestDataLoader, CosmoSampler, ClimateSampler, Samples
+from prepare_data import Query, TrainValDataLoader, TestDataLoader, CosmoSampler, ClimateSampler, Samples
 from model import CosmoModel, Model, ClimateModel
 from const import Const
 from visualization_utils import draw_temperature_comparison
@@ -132,6 +132,81 @@ def exp_06() -> None:
 
         loader.save_to_file(f'results_climate_{year}.csv', Query(
             'Kyiv', f'{year}-01-01', f'{year}-12-31'))
+
+
+def exp_07() -> None:
+    train_queries = [Query(st, '2012-07-01', '2013-07-01')
+                     for st in Const.meteorological_stations]
+    val_queries = [Query(st, '2013-07-01', '2013-10-01')
+                   for st in Const.meteorological_stations]
+
+    model: Model = CosmoModel()
+    model.train(train_queries, val_queries, CosmoSampler())
+
+    test_queries = [Query(st, '2013-10-01', '2013-11-02')
+                    for st in Const.meteorological_stations]
+
+    test_forecasts: np.array
+    test_observations: np.array
+    test_forecasts, test_observations = TrainValDataLoader(
+        test_queries, CosmoSampler()).get_data()
+
+    test_forecasts_nn: np.array = model.forecast(test_forecasts)
+    print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
+
+
+def exp_08() -> None:
+    train_queries_wo_kyiv = [Query(st, '2012-07-01', '2013-07-01')
+                             for st in Const.meteorological_stations if st != 'Kyiv']
+    val_queries_wo_kyiv = [Query(st, '2013-07-01', '2013-10-01')
+                           for st in Const.meteorological_stations if st != 'Kyiv']
+
+    model_wo_kyiv: Model = CosmoModel()
+    model_wo_kyiv.train(train_queries_wo_kyiv,
+                        val_queries_wo_kyiv, CosmoSampler())
+
+    model_kyiv: Model = CosmoModel()
+    model_kyiv.train([Query('Kyiv', '2012-07-01', '2013-07-01')],
+                     [Query('Kyiv', '2013-07-01', '2013-10-01')], CosmoSampler())
+
+    test_queries_wo_kyiv = [Query(st, '2013-10-01', '2013-11-02')
+                            for st in Const.meteorological_stations if st != 'Kyiv']
+
+    test_data_wo_kyiv = TrainValDataLoader(
+        test_queries_wo_kyiv, CosmoSampler()).get_data()
+    test_data_kyiv = TrainValDataLoader(
+        [Query('Kyiv', '2013-10-01', '2013-11-02')], CosmoSampler()).get_data()
+
+    for model in [model_wo_kyiv, model_kyiv]:
+        for data in [test_data_wo_kyiv, test_data_kyiv]:
+            test_forecasts: np.array
+            test_observations: np.array
+            test_forecasts, test_observations = data
+            test_forecasts_nn: np.array = model.forecast(test_forecasts)
+            print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
+
+
+def exp_09() -> None:
+    stations = [st for st in Const.meteorological_stations if st not in [
+        'Teteriv', 'Chornobyl', 'Kyiv']]
+    train_queries = [Query(st, '2012-07-01', '2013-07-01')
+                     for st in stations]
+    val_queries = [Query(st, '2013-07-01', '2013-10-01')
+                   for st in stations]
+
+    model: Model = CosmoModel()
+    model.train(train_queries, val_queries, CosmoSampler())
+
+    test_queries = [Query(st, '2013-10-01', '2013-11-02')
+                    for st in Const.meteorological_stations]
+
+    test_forecasts: np.array
+    test_observations: np.array
+    test_forecasts, test_observations = TrainValDataLoader(
+        test_queries, CosmoSampler()).get_data()
+
+    test_forecasts_nn: np.array = model.forecast(test_forecasts)
+    print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
 
 
 if __name__ == '__main__':
