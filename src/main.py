@@ -202,6 +202,8 @@ def exp_08() -> None:
             print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
             print(
                 f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
+            mean_improvement(test_observations,
+                             test_forecasts, test_forecasts_nn)
 
 
 def exp_09() -> None:
