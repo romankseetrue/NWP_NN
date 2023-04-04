@@ -11,6 +11,12 @@ def rmse(y_true: np.array, y_pred: np.array) -> np.float32:
     return np.sqrt(np.mean(np.square(y_pred - y_true)))
 
 
+def improvement_fraction(y_true: np.array, y_pred_nwp: np.array, y_pred_nn: np.array) -> np.float32:
+    tmp: np.array = np.less(np.square(
+        y_pred_nn - y_true), np.square(np.reshape(y_pred_nwp, y_true.shape) - y_true))
+    return np.float32(tmp.sum()) / tmp.size
+
+
 def exp_00() -> None:
     loader: TestDataLoader = TestDataLoader(
         Query('Kyiv', '2013-04-01', '2013-05-01'), CosmoSampler())
@@ -18,7 +24,7 @@ def exp_00() -> None:
     forecasts: np.array
     observations: np.array
     forecasts, observations = loader.get_data()
-    forecasts = np.reshape(forecasts, (-1, Const.measurements_per_day))
+    forecasts = np.reshape(forecasts, observations.shape)
     forecasts = np.mean(forecasts, axis=0)
     observations = np.mean(observations, axis=0)
 
@@ -38,7 +44,7 @@ def exp_01() -> None:
         forecasts: np.array
         observations: np.array
         forecasts, observations = loader.get_data()
-        forecasts = np.reshape(forecasts, (-1, Const.measurements_per_day))
+        forecasts = np.reshape(forecasts, observations.shape)
 
         res[st] = f'{rmse(forecasts, observations):.4f}'
 
@@ -152,7 +158,9 @@ def exp_07() -> None:
         test_queries, CosmoSampler()).get_data()
 
     test_forecasts_nn: np.array = model.forecast(test_forecasts)
-    print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
+    print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
+    print(
+        f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
 
 
 def exp_08() -> None:
@@ -183,7 +191,9 @@ def exp_08() -> None:
             test_observations: np.array
             test_forecasts, test_observations = data
             test_forecasts_nn: np.array = model.forecast(test_forecasts)
-            print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
+            print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
+            print(
+                f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
 
 
 def exp_09() -> None:
@@ -206,7 +216,9 @@ def exp_09() -> None:
         test_queries, CosmoSampler()).get_data()
 
     test_forecasts_nn: np.array = model.forecast(test_forecasts)
-    print(f'{rmse(test_forecasts_nn, test_observations):.4f}')
+    print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
+    print(
+        f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
 
 
 if __name__ == '__main__':
