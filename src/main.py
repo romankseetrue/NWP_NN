@@ -17,6 +17,14 @@ def improvement_fraction(y_true: np.array, y_pred_nwp: np.array, y_pred_nn: np.a
     return np.float32(tmp.sum()) / tmp.size
 
 
+def mean_improvement(y_true: np.array, y_pred_nwp: np.array, y_pred_nn: np.array) -> None:
+    tmp1 = np.abs(y_pred_nn - y_true).flatten()
+    tmp2 = np.abs(np.reshape(y_pred_nwp, y_true.shape) - y_true).flatten()
+    tmp = tmp2 - tmp1
+    print(
+        f'MEAN_IMPR: {np.mean(tmp[tmp < 0]):.4f}, {np.mean(tmp[tmp > 0]):.4f}')
+
+
 def exp_00() -> None:
     loader: TestDataLoader = TestDataLoader(
         Query('Kyiv', '2013-04-01', '2013-05-01'), CosmoSampler())
@@ -219,6 +227,29 @@ def exp_09() -> None:
     print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
     print(
         f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
+
+
+def exp_10(st1: str) -> None:
+    model: Model = CosmoModel()
+    model.train([Query(st1, '2012-07-01', '2013-07-01')],
+                [Query(st1, '2013-07-01', '2013-11-02')], CosmoSampler())
+
+    for st2 in Const.meteorological_stations:
+        if st1 != st2:
+            test_loader: TestDataLoader = TestDataLoader(
+                Query(st2), CosmoSampler())
+
+            test_forecasts: np.array
+            test_observations: np.array
+            test_forecasts, test_observations = test_loader.get_data()
+
+            test_forecasts_nn: np.array = model.forecast(test_forecasts)
+            print(st2)
+            print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
+            print(
+                f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
+            mean_improvement(test_observations,
+                             test_forecasts, test_forecasts_nn)
 
 
 if __name__ == '__main__':
