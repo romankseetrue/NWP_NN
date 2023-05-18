@@ -174,7 +174,7 @@ def exp_07() -> None:
 def exp_08() -> None:
     train_queries_wo_kyiv = [Query(st, '2012-07-01', '2013-07-01')
                              for st in Const.meteorological_stations if st != 'Kyiv']
-    val_queries_wo_kyiv = [Query(st, '2013-07-01', '2013-10-01')
+    val_queries_wo_kyiv = [Query(st, '2013-07-01', '2013-11-02')
                            for st in Const.meteorological_stations if st != 'Kyiv']
 
     model_wo_kyiv: Model = CosmoModel()
@@ -183,15 +183,15 @@ def exp_08() -> None:
 
     model_kyiv: Model = CosmoModel()
     model_kyiv.train([Query('Kyiv', '2012-07-01', '2013-07-01')],
-                     [Query('Kyiv', '2013-07-01', '2013-10-01')], CosmoSampler())
+                     [Query('Kyiv', '2013-07-01', '2013-11-02')], CosmoSampler())
 
-    test_queries_wo_kyiv = [Query(st, '2013-10-01', '2013-11-02')
+    test_queries_wo_kyiv = [Query(st, '2013-11-02', '2014-04-01')
                             for st in Const.meteorological_stations if st != 'Kyiv']
 
     test_data_wo_kyiv = TrainValDataLoader(
         test_queries_wo_kyiv, CosmoSampler()).get_data()
     test_data_kyiv = TrainValDataLoader(
-        [Query('Kyiv', '2013-10-01', '2013-11-02')], CosmoSampler()).get_data()
+        [Query('Kyiv', '2013-11-02', '2014-04-01')], CosmoSampler()).get_data()
 
     for model in [model_wo_kyiv, model_kyiv]:
         for data in [test_data_wo_kyiv, test_data_kyiv]:
