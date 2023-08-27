@@ -12,7 +12,7 @@ def rmse(y_true: np.array, y_pred: np.array) -> np.float32:
 
 
 def improvement_fraction(y_true: np.array, y_pred_nwp: np.array, y_pred_nn: np.array) -> np.float32:
-    tmp: np.array = np.less(np.square(
+    tmp: np.array = np.less_equal(np.square(
         y_pred_nn - y_true), np.square(np.reshape(y_pred_nwp, y_true.shape) - y_true))
     return np.float32(tmp.sum()) / tmp.size
 
@@ -252,6 +252,29 @@ def exp_10(st1: str) -> None:
                 f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
             mean_improvement(test_observations,
                              test_forecasts, test_forecasts_nn)
+
+
+def exp_11(st: str) -> None:
+    train_queries = [Query(st, '2012-07-01', '2013-07-01')]
+    val_queries = [Query(st, '2013-07-01', '2013-11-01')]
+
+    model: Model = CosmoModel()
+    model.train(train_queries, val_queries, CosmoSampler())
+
+    test_loader: TestDataLoader = TestDataLoader(
+        Query(st, '2013-11-01', '2014-04-01'), CosmoSampler())
+
+    test_forecasts: np.array
+    test_observations: np.array
+    test_forecasts, test_observations = test_loader.get_data()
+
+    test_forecasts_nn: np.array = model.forecast(test_forecasts)
+    print(f'RMSE: {rmse(np.reshape(test_forecasts, test_observations.shape), test_observations):.4f} --> {rmse(test_forecasts_nn, test_observations):.4f}')
+    print(
+        f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
+
+    test_loader.update(test_forecasts_nn)
+    test_loader.save_to_file(st + '_nn_results.csv')
 
 
 if __name__ == '__main__':

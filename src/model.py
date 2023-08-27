@@ -54,7 +54,8 @@ class CosmoModel(Model):
 
         self._Model__model: keras.Model = Sequential()
         self._Model__model.add(Input(shape=(None, 1)))
-        self._Model__model.add(GRU(16))
+        self._Model__model.add(GRU(64))
+        self._Model__model.add(Dense(64))
         self._Model__model.add(Dense(Const.measurements_per_day))
 
         self._Model__model.summary()
