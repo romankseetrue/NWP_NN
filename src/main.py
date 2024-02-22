@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -255,14 +257,16 @@ def exp_10(st1: str) -> None:
 
 
 def exp_11(st: str) -> None:
-    train_queries = [Query(st, '2012-07-01', '2013-07-01')]
-    val_queries = [Query(st, '2013-07-01', '2013-11-01')]
+    file_name: str = os.path.join(
+        '..', 'data', f'Temperature_COSMO_{st}_1Day.csv')
+    train_queries = [Query(file_name, '2012-07-01', '2013-07-01')]
+    val_queries = [Query(file_name, '2013-07-01', '2013-11-01')]
 
     model: Model = CosmoModel()
     model.train(train_queries, val_queries, CosmoSampler())
 
     test_loader: TestDataLoader = TestDataLoader(
-        Query(st, '2013-11-01', '2014-04-01'), CosmoSampler())
+        Query(file_name, '2013-11-01', '2014-04-01'), CosmoSampler())
 
     test_forecasts: np.array
     test_observations: np.array
@@ -274,7 +278,7 @@ def exp_11(st: str) -> None:
         f'FRAC: {improvement_fraction(test_observations, test_forecasts, test_forecasts_nn):.4f}')
 
     test_loader.update(test_forecasts_nn)
-    test_loader.save_to_file(st + '_nn_results.csv')
+    test_loader.save_to_file(f'Temperature_COSMO_{st}_1Day_NN.csv')
 
 
 if __name__ == '__main__':

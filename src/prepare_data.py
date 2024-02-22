@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Query:
-    station_name: str = ''
+    file_name: str = ''
     start_date: str = '2012-07-01'
     end_date: str = '2015-08-01'
 
@@ -67,10 +67,8 @@ class Sampler:
 
 class CosmoSampler(Sampler):
     def process_file(self, query: Query) -> pd.DataFrame:
-        file_id: int = Const.meteorological_stations[query.station_name]
-        file_name: str = f'../data/COSMO/fo_ua_all_cosmo_{file_id}_TTT_20120701_20131101_start00_zv03_trv21.csv'
         df: pd.DataFrame = pd.read_csv(
-            file_name, skipinitialspace=True).replace('n', np.nan)
+            query.file_name, skipinitialspace=True).replace('n', np.nan)
 
         df['DateTime'] = pd.to_datetime(
             df['DATE'] + ' ' + df['TIME'], dayfirst=True)
