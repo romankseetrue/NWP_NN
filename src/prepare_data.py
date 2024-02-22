@@ -115,6 +115,22 @@ class CosmoSampler(Sampler):
         df.to_csv(filepath, na_rep='n', float_format='%.1f', index=False)
 
 
+class CosmoDenseSampler(CosmoSampler):
+    def get_samples(self, df: pd.DataFrame) -> Samples:
+        assert df.shape[0] % Const.measurements_per_day == 0
+        samples_cnt: int = df.shape[0] // Const.measurements_per_day
+
+        inp: np.array = np.array(df['Fcst'])
+        inp = np.reshape(inp, (samples_cnt, Const.measurements_per_day))
+
+        out: np.array = np.array(df['Obs'])
+        out = np.reshape(out, (samples_cnt, Const.measurements_per_day))
+
+        samples: Samples = Samples()
+        samples.add_arrays(inp, out)
+        return samples
+
+
 class ClimateSampler(Sampler):
     def process_file(self, query: Query) -> pd.DataFrame:
         file_name: str = f'../data/Kyiv_Daily_Temperature_bl_1961-2010.csv'

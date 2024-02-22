@@ -73,6 +73,21 @@ class CosmoModel(Model):
         self._Model__model.compile(loss='mse', optimizer='adam')
 
 
+class CosmoDenseModel(Model):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._Model__model: keras.Model = Sequential()
+        self._Model__model.add(Input(shape=(8)))
+        self._Model__model.add(Dense(64))
+        self._Model__model.add(Dense(32))
+        self._Model__model.add(Dense(Const.measurements_per_day))
+
+        self._Model__model.summary()
+
+        self._Model__model.compile(loss='mse', optimizer='adam')
+
+
 class ClimateModel(Model):
     def __init__(self) -> None:
         super().__init__()
