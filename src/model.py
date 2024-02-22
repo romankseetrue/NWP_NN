@@ -4,6 +4,7 @@ import numpy as np
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, GRU, Input
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 from typing import List, Optional
 from const import Const
@@ -18,7 +19,7 @@ class Model:
 
         self.__model: Optional[keras.Model] = None
 
-    def train(self, train_data_queries: List[Query], val_data_queries: List[Query], samples_designer: Sampler) -> tf.keras.callbacks.History:
+    def train(self, train_data_queries: List[Query], val_data_queries: List[Query], samples_designer: Sampler) -> None:
         train_forecasts: np.array
         train_observations: np.array
         train_forecasts, train_observations = TrainValDataLoader(
@@ -29,14 +30,23 @@ class Model:
         val_forecasts, val_observations = TrainValDataLoader(
             val_data_queries, samples_designer).get_data()
 
-        return self.__model.fit(
+        checkpoint_filepath = 'checkpoint.weights.h5'
+        model_checkpoint_callback = ModelCheckpoint(
+            filepath=checkpoint_filepath, save_weights_only=True, monitor='val_loss', mode='min', save_best_only=True)
+
+        # Model weights are saved at the end of every epoch, if it's the best seen so far
+        self.__model.fit(
             x=train_forecasts,
             y=train_observations,
             batch_size=Const.batch_size,
             epochs=Const.epochs,
             verbose=Const.verbose,
-            validation_data=(val_forecasts, val_observations)
+            validation_data=(val_forecasts, val_observations),
+            callbacks=[model_checkpoint_callback]
         )
+
+        # The model weights (that are considered the best) are loaded
+        self.__model.load_weights(checkpoint_filepath)
 
     def test(self, inp: np.array, out: np.array) -> np.float32:
         return self.__model.evaluate(x=inp,
